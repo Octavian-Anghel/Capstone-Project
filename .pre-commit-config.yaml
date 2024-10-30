@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files # Checks for file size limits
+        args: ["--maxkb=5120"] # 5MB limit in KB
+
+      - id: check-yaml # Ensures valid YAML format
+      - id: end-of-file-fixer # Ensures file ends with a newline
+      - id: trailing-whitespace # Removes trailing whitespace
+
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black # Enforces code formatting with Black
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8 # Enforces code linting with Flake8
+        args: ["--max-line-length=88"] # Adjust line length if needed
