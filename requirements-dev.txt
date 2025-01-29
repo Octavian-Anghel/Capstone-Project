@@ -1,8 +1,16 @@
-pytest
-setuptools
-build
-flake8
-black
-wheel
-packaging
--rrequirements.txt
+module github.com/Octavian-Anghel/Capstone-Project
+
+go 1.21
+
+require (
+    github.com/golangci/golangci-lint v1.55.2   // Linter (Flake8 equivalent)
+    github.com/mgechev/revive v1.3.1            // Alternative linter
+    github.com/gofmt/gofmt v1.0.0               // Formatting (Black equivalent)
+    github.com/stretchr/testify v1.8.4          // Testing (Pytest equivalent)
+    github.com/securego/gosec/v2 v2.16.0        // Security analysis
+    github.com/golang/mock v1.6.0               // Mocking framework for testing
+    honnef.co/go/tools v0.12.0                  // Static analysis (Staticcheck)
+    golang.org/x/tools v0.12.0                  // Additional tooling
+    github.com/mitchellh/gox v1.0.1             // Build tool (Setuptools, Wheel, Build equivalent)
+    github.com/mitchellh/gobuild v1.0.0         // Build helper (Wheel alternative)
+)
