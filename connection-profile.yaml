@@ -1,0 +1,20 @@
+name: fabric-network
+version: 1.0.0
+client:
+  organization: Org1
+  credentialStore:
+    path: /tmp/creds
+channels:
+  mychannel:
+    orderers:
+      - url: grpc://localhost:7050
+    peers:
+      peer0.org1.example.com:
+        url: grpc://localhost:7051
+organizations:
+  Org1:
+    mspid: Org1MSP
+    peers:
+      - peer0.org1.example.com
+    certificateAuthorities:
+      - ca.org1.example.com
