@@ -1,0 +1,15 @@
+[
+    {
+        "name": "filehashCollection",
+        "policy": {
+            "identities": [
+                { "role": { "name": "member", "mspId": "Org1MSP" } },
+                { "role": { "name": "member", "mspId": "Org2MSP" } }
+            ],
+            "rule": "ANY"
+        },
+        "blockToLive": 99,
+        "requiredPeerCount": 1,
+        "maxPeerCount": 2
+    }
+]
