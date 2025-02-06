@@ -28,7 +28,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: go mod tidy
+        run: |
+          go get google.golang.org/genproto@latest
+          go mod tidy
 
       - name: Run Linter (golangci-lint)
         run: |
