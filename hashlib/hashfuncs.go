@@ -7,17 +7,25 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"sort"
 	"sync"
 )
 
-// Number of concurrent threads for hashing
+// Default number of threads
 const NUM_THREADS = 4
 
-// GetSHA computes a SHA256 hash for a chunk of a file
+// GetSHA computes SHA256 hash for a chunk of a file
 func GetSHA(filename string, startIndex int64, bytesPerThread int64, wg *sync.WaitGroup, hashResults chan<- string) {
 	defer wg.Done()
 
-	file, err := os.Open(filename)
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		log.Println("Error resolving file path:", err)
+		return
+	}
+
+	file, err := os.Open(absPath)
 	if err != nil {
 		log.Println("Error opening file:", err)
 		return
@@ -49,23 +57,54 @@ func GetSHA(filename string, startIndex int64, bytesPerThread int64, wg *sync.Wa
 	}
 
 	hashResults <- hex.EncodeToString(hasher.Sum(nil))
-	log.Printf("Hashing complete for chunk starting at: %d\n", startIndex)
 }
 
-// HashFile generates the SHA256 hash of an entire file
+// HashFile generates a SHA256 hash of an entire file
 func HashFile(filePath string) (string, error) {
-	file, err := os.Open(filePath)
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve file path: %s", filePath)
+	}
+
+	file, err := os.Open(absPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
 	}
 	defer file.Close()
 
-	// Use SHA256 to hash the file content
-	hash := sha256.New()
-	_, err = io.Copy(hash, file)
+	// Get file size
+	fileInfo, err := file.Stat()
 	if err != nil {
-		return "", fmt.Errorf("failed to hash file: %v", err)
+		return "", fmt.Errorf("failed to get file size: %v", err)
+	}
+	fileSize := fileInfo.Size()
+
+	// Split work into threads
+	bytesPerThread := fileSize / int64(NUM_THREADS)
+	var wg sync.WaitGroup
+	hashResults := make(chan string, NUM_THREADS)
+
+	for i := 0; i < NUM_THREADS; i++ {
+		wg.Add(1)
+		startIndex := int64(i) * bytesPerThread
+		go GetSHA(filePath, startIndex, bytesPerThread, &wg, hashResults)
 	}
 
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	wg.Wait()
+	close(hashResults)
+
+	// Collect results and ensure deterministic hashing order
+	var hashes []string
+	for hash := range hashResults {
+		hashes = append(hashes, hash)
+	}
+	sort.Strings(hashes) // Sort to ensure consistent order
+
+	// Combine hashes
+	finalHasher := sha256.New()
+	for _, hash := range hashes {
+		finalHasher.Write([]byte(hash))
+	}
+
+	return hex.EncodeToString(finalHasher.Sum(nil)), nil
 }
