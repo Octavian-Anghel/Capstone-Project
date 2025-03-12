@@ -8,31 +8,40 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 )
 
-// Default number of threads
+// Number of threads for parallel hashing
 const NUM_THREADS = 4
 
 // GetSHA computes SHA256 hash for a chunk of a file
 func GetSHA(filename string, startIndex int64, bytesPerThread int64, wg *sync.WaitGroup, hashResults chan<- string) {
 	defer wg.Done()
 
+	// Resolve and clean the absolute path
 	absPath, err := filepath.Abs(filename)
 	if err != nil {
-		log.Println("Error resolving file path:", err)
+		log.Println("Failed to resolve absolute path:", err)
+		return
+	}
+	cleanPath := filepath.Clean(absPath)
+
+	// Ensure file exists and is not a directory
+	fileInfo, err := os.Stat(cleanPath)
+	if err != nil || fileInfo.IsDir() {
+		log.Println("Invalid file path:", cleanPath)
 		return
 	}
 
-	file, err := os.Open(absPath)
+	// Open the file securely
+	file, err := os.Open(cleanPath) // Removed os.OpenFile for security
 	if err != nil {
 		log.Println("Error opening file:", err)
 		return
 	}
 	defer file.Close()
 
-	_, err = file.Seek(startIndex, 0)
+	_, err = file.Seek(startIndex, io.SeekStart)
 	if err != nil {
 		log.Println("Error seeking file:", err)
 		return
@@ -57,54 +66,36 @@ func GetSHA(filename string, startIndex int64, bytesPerThread int64, wg *sync.Wa
 	}
 
 	hashResults <- hex.EncodeToString(hasher.Sum(nil))
+	log.Printf("Hashing complete for chunk starting at: %d\n", startIndex)
 }
 
-// HashFile generates a SHA256 hash of an entire file
+// HashFile generates SHA256 hash of an entire file
 func HashFile(filePath string) (string, error) {
+	// Resolve and clean the absolute path
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve file path: %s", filePath)
+		return "", fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+	cleanPath := filepath.Clean(absPath)
+
+	// Ensure file exists and is not a directory
+	fileInfo, err := os.Stat(cleanPath)
+	if err != nil || fileInfo.IsDir() {
+		return "", fmt.Errorf("invalid file path: %s", cleanPath)
 	}
 
-	file, err := os.Open(absPath)
+	// Open file securely in read-only mode
+	file, err := os.Open(cleanPath) // Removed os.OpenFile for security
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %v", err)
+		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	// Get file size
-	fileInfo, err := file.Stat()
+	hash := sha256.New()
+	_, err = io.Copy(hash, file)
 	if err != nil {
-		return "", fmt.Errorf("failed to get file size: %v", err)
-	}
-	fileSize := fileInfo.Size()
-
-	// Split work into threads
-	bytesPerThread := fileSize / int64(NUM_THREADS)
-	var wg sync.WaitGroup
-	hashResults := make(chan string, NUM_THREADS)
-
-	for i := 0; i < NUM_THREADS; i++ {
-		wg.Add(1)
-		startIndex := int64(i) * bytesPerThread
-		go GetSHA(filePath, startIndex, bytesPerThread, &wg, hashResults)
+		return "", fmt.Errorf("failed to hash file: %w", err)
 	}
 
-	wg.Wait()
-	close(hashResults)
-
-	// Collect results and ensure deterministic hashing order
-	var hashes []string
-	for hash := range hashResults {
-		hashes = append(hashes, hash)
-	}
-	sort.Strings(hashes) // Sort to ensure consistent order
-
-	// Combine hashes
-	finalHasher := sha256.New()
-	for _, hash := range hashes {
-		finalHasher.Write([]byte(hash))
-	}
-
-	return hex.EncodeToString(finalHasher.Sum(nil)), nil
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }

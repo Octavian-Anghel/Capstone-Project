@@ -58,11 +58,11 @@ func TestParallelHashing(t *testing.T) {
 	defer os.Remove(testFile)
 
 	var wg sync.WaitGroup
-	hashResults := make(chan string, 4)
+	hashResults := make(chan string, NUM_THREADS)
 	fileSize := int64(len(content))
-	bytesPerThread := fileSize / 4 // 4 threads
+	bytesPerThread := fileSize / int64(NUM_THREADS)
 
-	for i := 0; i < 4; i++ {
+	for i := 0; i < NUM_THREADS; i++ {
 		startIndex := int64(i) * bytesPerThread
 		wg.Add(1)
 		go GetSHA(testFile, startIndex, bytesPerThread, &wg, hashResults)
@@ -77,8 +77,8 @@ func TestParallelHashing(t *testing.T) {
 	}
 
 	// Ensure all chunks produced valid hashes
-	if len(hashes) != 4 {
-		t.Errorf("Expected 4 hashes, got %d", len(hashes))
+	if len(hashes) != NUM_THREADS {
+		t.Errorf("Expected %d hashes, got %d", NUM_THREADS, len(hashes))
 	}
 
 	// Hashing the entire file should still match
