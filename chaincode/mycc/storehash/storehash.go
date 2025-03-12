@@ -1,16 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 )
 
-// SimpleChaincode structure for the chaincode
+// SimpleChaincode structure
 type SimpleChaincode struct{}
 
 // Init initializes the chaincode
@@ -22,47 +20,39 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	function, args := stub.GetFunctionAndParameters()
 
-	switch function {
-	case "storeImageHash":
+	if function == "storeImageHash" {
 		return t.storeImageHash(stub, args)
-	case "queryImageHash":
+	} else if function == "queryImageHash" {
 		return t.queryImageHash(stub, args)
-	default:
-		return shim.Error("Invalid function name")
 	}
+
+	return shim.Error("Invalid function name")
 }
 
-// storeImageHash stores an image hash along with the current timestamp
+// storeImageHash stores an image hash with a timestamp
 func (t *SimpleChaincode) storeImageHash(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	if len(args) != 1 || args[0] == "" {
-		return shim.Error("Incorrect number of arguments. Expecting 1: Image Hash")
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
 	}
 
 	imageHash := args[0]
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 
-	data := map[string]string{
-		"imageHash": imageHash,
-		"timestamp": timestamp,
-	}
-
-	imageData, err := json.Marshal(data)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed to serialize data: %s", err.Error()))
-	}
-
 	key := fmt.Sprintf("image_%s", imageHash)
-	if err := stub.PutState(key, imageData); err != nil {
+	imageData := fmt.Sprintf(`{"imageHash":"%s", "timestamp":"%s"}`, imageHash, timestamp)
+
+	err := stub.PutState(key, []byte(imageData))
+	if err != nil {
 		return shim.Error(fmt.Sprintf("Failed to store image hash: %s", err.Error()))
 	}
 
-	return shim.Success([]byte(fmt.Sprintf("Image hash and timestamp stored successfully: %s", key)))
+	return shim.Success([]byte(fmt.Sprintf("Stored successfully: %s", key)))
 }
 
-// queryImageHash retrieves the image hash and timestamp
+// queryImageHash retrieves an image hash
 func (t *SimpleChaincode) queryImageHash(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	if len(args) != 1 || args[0] == "" {
-		return shim.Error("Incorrect number of arguments. Expecting 1: Image Hash")
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
 	}
 
 	imageHash := args[0]
@@ -71,6 +61,7 @@ func (t *SimpleChaincode) queryImageHash(stub shim.ChaincodeStubInterface, args 
 	if err != nil {
 		return shim.Error(fmt.Sprintf("Failed to get image data: %s", err.Error()))
 	}
+
 	if imageData == nil {
 		return shim.Error("Image hash not found")
 	}
@@ -78,10 +69,10 @@ func (t *SimpleChaincode) queryImageHash(stub shim.ChaincodeStubInterface, args 
 	return shim.Success(imageData)
 }
 
-// main function to start the chaincode
+// main function to start chaincode
 func main() {
 	err := shim.Start(new(SimpleChaincode))
 	if err != nil {
-		log.Fatalf("Error starting SimpleChaincode: %v", err)
+		fmt.Printf("Error starting SimpleChaincode: %s", err)
 	}
 }
