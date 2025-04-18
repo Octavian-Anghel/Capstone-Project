@@ -56,12 +56,12 @@ func GetSHA(filename string, startIndex int64, bytesPerThread int64, index int, 
 	//fmt.Println("Hashing complete for chunk starting at:", startIndex)
 }
 
-func HashNUpload(fn string) {
+func HashNUpload(fn string) string {
 	filename := fn
 	fileInfo, err := os.Stat(filename)
 	if err != nil {
 		fmt.Println("Error getting file info:", err)
-		return
+		return ""
 	}
 
 	fileSize := fileInfo.Size()
@@ -94,5 +94,5 @@ func HashNUpload(fn string) {
 		finalHash += r.Hash
 	}
 
-	fmt.Printf("sending hash to the Gateway node! hash value:\n %s", finalHash)
+	return finalHash
 }
